@@ -28,7 +28,7 @@ training:
   n_critic: 5
   lr_g: 0.0001
   lr_d: 0.0004
-  gradient_clip_val: 1.0
+  gradient_clip_val: 0.0  # manual optimization; leave 0 to avoid Lightning clipping
 
 # Trainer configuration
 trainer:
@@ -39,11 +39,20 @@ trainer:
   enable_progress_bar: true
   enable_model_summary: true
 
+# Quick run settings for fast experimentation (optionally override via CLI)
+quick_run:
+  enabled: false
+  max_epochs: 5
+  batch_size: 32
+  limit_train_batches: 0.2   # use a fraction of the training data
+  limit_val_batches: 0.5
+  limit_test_batches: 0.0
+
 # Logging
 wandb:
   project: sales-forecasting-gan
   entity: null  # Set your wandb username
-  mode: online  # or 'disabled' for no logging
+  mode: disabled  # set to 'online' if you want W&B logging
 
 # Checkpointing
 checkpoint:

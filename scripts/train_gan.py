@@ -33,6 +33,15 @@ def train(cfg: DictConfig):
     print("\nConfiguration:")
     print(OmegaConf.to_yaml(cfg))
 
+    quick_cfg = cfg.get("quick_run")
+    quick_enabled = bool(quick_cfg and quick_cfg.enabled)
+    effective_batch_size = (
+        quick_cfg.batch_size if quick_enabled and quick_cfg.batch_size else cfg.data.batch_size
+    )
+    effective_max_epochs = (
+        quick_cfg.max_epochs if quick_enabled and quick_cfg.max_epochs else cfg.training.max_epochs
+    )
+
     # Set seed for reproducibility
     pl.seed_everything(cfg.seed, workers=True)
 
@@ -42,7 +51,7 @@ def train(cfg: DictConfig):
     print("="*60)
     datamodule = SalesDataModule(
         data_path=cfg.data.path,
-        batch_size=cfg.data.batch_size,
+        batch_size=effective_batch_size,
         num_workers=cfg.data.num_workers,
         history_window=cfg.data.history_window,
         forecast_horizon=cfg.data.forecast_horizon,
@@ -117,8 +126,8 @@ def train(cfg: DictConfig):
     print("INITIALIZING TRAINER")
     print("="*60)
 
-    trainer = pl.Trainer(
-        max_epochs=cfg.training.max_epochs,
+    trainer_kwargs = dict(
+        max_epochs=effective_max_epochs,
         accelerator=cfg.trainer.accelerator,
         devices=cfg.trainer.devices,
         callbacks=callbacks,
@@ -127,14 +136,30 @@ def train(cfg: DictConfig):
         log_every_n_steps=cfg.trainer.log_every_n_steps,
         enable_progress_bar=cfg.trainer.enable_progress_bar,
         enable_model_summary=cfg.trainer.enable_model_summary,
-        deterministic=cfg.trainer.deterministic
+        deterministic=cfg.trainer.deterministic,
     )
 
+    if quick_enabled:
+        # Use only a fraction of data to iterate quickly during experiments
+        if quick_cfg.limit_train_batches is not None:
+            trainer_kwargs["limit_train_batches"] = quick_cfg.limit_train_batches
+        if quick_cfg.limit_val_batches is not None:
+            trainer_kwargs["limit_val_batches"] = quick_cfg.limit_val_batches
+        if quick_cfg.limit_test_batches is not None:
+            trainer_kwargs["limit_test_batches"] = quick_cfg.limit_test_batches
+
+    trainer = pl.Trainer(**trainer_kwargs)
+
     print(f"\nTrainer configuration:")
-    print(f"  Max epochs: {cfg.training.max_epochs}")
+    print(f"  Max epochs: {effective_max_epochs}")
     print(f"  Accelerator: {cfg.trainer.accelerator}")
     print(f"  Devices: {cfg.trainer.devices}")
     print(f"  Gradient clipping: {cfg.training.gradient_clip_val}")
+    if quick_enabled:
+        print("  Quick run: ENABLED")
+        print(f"    Batch size: {effective_batch_size}")
+        print(f"    limit_train_batches: {trainer_kwargs.get('limit_train_batches', 'full')}")
+        print(f"    limit_val_batches: {trainer_kwargs.get('limit_val_batches', 'full')}")
 
     # Train model
     print("\n" + "="*60)
