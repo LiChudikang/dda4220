@@ -119,21 +119,21 @@ def train(cfg: DictConfig):
 
     trainer = pl.Trainer(
         max_epochs=cfg.training.max_epochs,
-        accelerator='auto',  # Automatically select GPU if available
-        devices=1,
+        accelerator=cfg.trainer.accelerator,
+        devices=cfg.trainer.devices,
         callbacks=callbacks,
         logger=logger,
         gradient_clip_val=cfg.training.gradient_clip_val,
-        log_every_n_steps=10,
-        enable_progress_bar=True,
-        enable_model_summary=True,
-        deterministic=True
+        log_every_n_steps=cfg.trainer.log_every_n_steps,
+        enable_progress_bar=cfg.trainer.enable_progress_bar,
+        enable_model_summary=cfg.trainer.enable_model_summary,
+        deterministic=cfg.trainer.deterministic
     )
 
     print(f"\nTrainer configuration:")
     print(f"  Max epochs: {cfg.training.max_epochs}")
-    print(f"  Accelerator: {trainer.accelerator.__class__.__name__}")
-    print(f"  Devices: {trainer.num_devices}")
+    print(f"  Accelerator: {cfg.trainer.accelerator}")
+    print(f"  Devices: {cfg.trainer.devices}")
     print(f"  Gradient clipping: {cfg.training.gradient_clip_val}")
 
     # Train model
