@@ -38,11 +38,14 @@ A novel approach to sales forecasting using Conditional Generative Adversarial N
    # Install dependencies
    !pip install -q -r requirements.txt
 
-   # Run the complete pipeline
-   !python scripts/run_kaggle.py
+   # Preprocess data (one-time)
+   !python scripts/preprocess_data.py
 
-   # Or for a quick test run (5 epochs, 20% data)
-   !python scripts/run_kaggle.py --quick
+   # Quick test (3 epochs, 10% data, ~30 minutes)
+   !python kaggle_train.py --quick
+
+   # Or full training (50 epochs, 100% data, ~12 hours)
+   !python kaggle_train.py
    ```
 
 **Advantages of Kaggle:**

@@ -85,9 +85,13 @@ class SalesDataset(Dataset):
 
     def _create_sequences(self, df: pd.DataFrame) -> list:
         """Create sequences for each product."""
-        sequences = []
+        from tqdm import tqdm
 
-        for product_id in df['product_id'].unique():
+        sequences = []
+        unique_products = df['product_id'].unique()
+        print(f"Creating sequences for {len(unique_products)} products...")
+
+        for product_id in tqdm(unique_products, desc="Processing products", leave=False):
             product_data = df[df['product_id'] == product_id].sort_values('date')
 
             # Need at least history_window + forecast_horizon days

@@ -39,7 +39,15 @@ class SalesDataModule(pl.LightningDataModule):
         super().__init__()
         self.data_path = data_path
         self.batch_size = batch_size
-        self.num_workers = num_workers
+
+        # Auto-adjust num_workers for Kaggle environment
+        from ..utils.kaggle_utils import is_kaggle_environment
+        if is_kaggle_environment() and num_workers > 0:
+            self.num_workers = 0
+            print(f"ℹ️  Kaggle environment detected: setting num_workers=0 (was {num_workers})")
+        else:
+            self.num_workers = num_workers
+
         self.history_window = history_window
         self.forecast_horizon = forecast_horizon
         self.train_ratio = train_ratio

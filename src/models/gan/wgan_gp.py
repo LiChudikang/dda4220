@@ -252,11 +252,17 @@ class WGANGP(pl.LightningModule):
             z = torch.randn(num_samples, self.noise_dim, device=self.device)
             fake_sales = self.generator(z, sales_history, temporal, review)
 
-            # Log to wandb or tensorboard
-            # (This would be enhanced with actual plotting)
-            print(f"\nEpoch {self.current_epoch} - Sample comparison:")
-            print(f"Real: {real_sales[0].cpu().numpy()}")
-            print(f"Fake: {fake_sales[0].cpu().numpy()}")
+            # Log to tensorboard (avoid print statements in Jupyter to prevent recursion)
+            self.logger.experiment.add_scalars(
+                'sample_comparison',
+                {
+                    'real_mean': real_sales.mean().item(),
+                    'fake_mean': fake_sales.mean().item(),
+                    'real_std': real_sales.std().item(),
+                    'fake_std': fake_sales.std().item(),
+                },
+                self.current_epoch
+            )
 
 
 if __name__ == "__main__":
