@@ -159,10 +159,7 @@ class SalesDataset(Dataset):
             'sales_history': torch.FloatTensor(seq['sales_history']),
             'temporal_features': torch.FloatTensor(seq['temporal_features']),
             'review_features': torch.FloatTensor(seq['review_features']),
-            'target_sales': torch.FloatTensor(seq['target_sales']),
-            # Optional metadata (not used by models, but handy for analysis/generation)
-            'product_id': str(seq['product_id']),
-            'date': str(seq['date'])
+            'target_sales': torch.FloatTensor(seq['target_sales'])
         }
 
 
@@ -242,8 +239,6 @@ class AugmentedSalesDataset(Dataset):
                     'temporal_features': torch.tensor(row['temporal_features'], dtype=torch.float32),
                     'review_features': torch.tensor(row['review_features'], dtype=torch.float32),
                     'target_sales': synthetic,
-                    'product_id': str(row.get('product_id', 'synthetic')),
-                    'date': str(row.get('date', ''))
                 })
             return samples
 

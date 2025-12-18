@@ -205,7 +205,7 @@ def step_train_gan(data_path: Path, quick_mode: bool = False, max_epochs: int = 
     return checkpoint_callback.best_model_path
 
 
-def step_generate_samples(checkpoint_path: str, data_path: Path, num_samples: int = 5):
+def step_generate_samples(checkpoint_path: str, data_path: Path, num_samples: int = 5, quick_mode: bool = False):
     """Step 3: Generate synthetic samples."""
     print("\n" + "="*60)
     print("STEP 3: GENERATING SYNTHETIC SAMPLES")
@@ -218,7 +218,8 @@ def step_generate_samples(checkpoint_path: str, data_path: Path, num_samples: in
     from src.utils.kaggle_utils import get_kaggle_paths
 
     paths = get_kaggle_paths()
-    output_path = paths['output_dir'] / 'synthetic_samples.parquet'
+    output_parquet = paths['output_dir'] / 'synthetic_samples.parquet'
+    output_torch = paths['output_dir'] / 'synthetic_samples.pt'
 
     print(f"\nLoading model from: {checkpoint_path}")
     model = WGANGP.load_from_checkpoint(checkpoint_path)
@@ -234,17 +235,24 @@ def step_generate_samples(checkpoint_path: str, data_path: Path, num_samples: in
     print(f"\nLoading data from: {data_path}")
     dataset = SalesDataset(str(data_path), history_window=30, forecast_horizon=7)
 
+    max_real_samples = len(dataset)
+    if quick_mode:
+        max_real_samples = min(max_real_samples, 500)
+        if max_real_samples < len(dataset):
+            print(f"Quick mode: limiting synthetic generation to {max_real_samples} source samples")
+
     print(f"Generating {num_samples} samples per real sample...")
 
     all_synthetic = []
+    metadata = []
 
     with torch.no_grad():
-        for idx in range(len(dataset)):
+        for idx in range(max_real_samples):
             if idx % 100 == 0:
-                print(f"  Progress: {idx}/{len(dataset)}")
+                print(f"  Progress: {idx}/{max_real_samples}")
 
             sample = dataset[idx]
-            history = sample['history_sales'].unsqueeze(0).to(device)
+            history = sample['sales_history'].unsqueeze(0).to(device)
             review_features = sample['review_features'].unsqueeze(0).to(device)
             temporal_features = sample['temporal_features'].unsqueeze(0).to(device)
 
@@ -254,18 +262,37 @@ def step_generate_samples(checkpoint_path: str, data_path: Path, num_samples: in
                 synthetic = model.generator(noise, history, review_features, temporal_features)
 
                 all_synthetic.append({
-                    'product_id': sample.get('product_id', f'product_{idx}'),
-                    'synthetic_sales': synthetic.cpu().numpy().flatten()
+                    'sales_history': sample['sales_history'],
+                    'temporal_features': sample['temporal_features'],
+                    'review_features': sample['review_features'],
+                    'target_sales': synthetic.squeeze(0).cpu()
                 })
 
-    # Save
-    df_synthetic = pd.DataFrame(all_synthetic)
-    df_synthetic.to_parquet(output_path)
+                # Keep lightweight metadata for parquet preview only
+                metadata.append({
+                    'product_id': dataset.sequences[idx]['product_id'],
+                    'date': str(dataset.sequences[idx]['date'])
+                })
+
+    # Save torch format for training
+    torch.save(all_synthetic, output_torch)
+
+    # Save a lightweight parquet for inspection/backward compatibility
+    df_synthetic = pd.DataFrame({
+        'product_id': [m['product_id'] for m in metadata],
+        'date': [m['date'] for m in metadata],
+        'sales_history': [s['sales_history'].numpy() for s in all_synthetic],
+        'temporal_features': [s['temporal_features'].numpy() for s in all_synthetic],
+        'review_features': [s['review_features'].numpy() for s in all_synthetic],
+        'synthetic_sales': [s['target_sales'].numpy() for s in all_synthetic],
+    })
+    df_synthetic.to_parquet(output_parquet)
 
     print(f"\n✓ Generated {len(df_synthetic)} synthetic samples")
-    print(f"✓ Saved to: {output_path}")
+    print(f"✓ Saved torch samples to: {output_torch}")
+    print(f"✓ Saved parquet preview to: {output_parquet}")
 
-    return output_path
+    return output_torch
 
 
 def step_train_baseline(data_path: Path, augmented: bool = False):
@@ -292,7 +319,7 @@ def step_train_baseline(data_path: Path, augmented: bool = False):
         history_window=30,
         forecast_horizon=7,
         use_augmentation=augmented,
-        synthetic_data_path=str(paths['output_dir'] / 'synthetic_samples.parquet') if augmented else None,
+        synthetic_data_path=str(paths['output_dir'] / 'synthetic_samples.pt') if augmented else None,
         synthetic_ratio=1.0
     )
 
@@ -372,7 +399,12 @@ def main():
     )
 
     # Step 3: Generate synthetic samples
-    synthetic_path = step_generate_samples(checkpoint_path, data_path, num_samples=5)
+    synthetic_path = step_generate_samples(
+        checkpoint_path,
+        data_path,
+        num_samples=5,
+        quick_mode=args.quick
+    )
 
     # Step 4: Train baselines
     if not args.skip_baseline:
