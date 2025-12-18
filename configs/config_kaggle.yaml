@@ -1,0 +1,75 @@
+experiment_name: cgan_sales_kaggle
+seed: 42
+
+# Data configuration for Kaggle environment
+data:
+  path: /kaggle/input/brazilian-ecommerce-preprocessed/product_daily_panel.parquet
+  batch_size: 128
+  num_workers: 2  # Kaggle has limited CPU cores
+  history_window: 30
+  forecast_horizon: 7
+  train_ratio: 0.7
+  val_ratio: 0.15
+  use_augmentation: false
+  synthetic_data_path: null
+  synthetic_ratio: 1.0
+
+# Model configuration
+model:
+  noise_dim: 128
+  condition_dim: 512
+  hidden_dim: 256
+  output_len: 7
+
+# Training configuration
+training:
+  max_epochs: 50  # Reduced for Kaggle's time limit
+  lambda_gp: 10.0
+  n_critic: 5
+  lr_g: 0.0001
+  lr_d: 0.0004
+  gradient_clip_val: 0.0
+
+# Trainer configuration
+trainer:
+  accelerator: auto
+  devices: 1
+  deterministic: false  # Set to false for better performance on Kaggle
+  log_every_n_steps: 10
+  enable_progress_bar: true
+  enable_model_summary: true
+
+# Quick run settings for fast experimentation
+quick_run:
+  enabled: false
+  max_epochs: 5
+  batch_size: 32
+  limit_train_batches: 0.2
+  limit_val_batches: 0.5
+  limit_test_batches: 0.0
+
+# Logging
+wandb:
+  project: sales-forecasting-gan
+  entity: null
+  mode: disabled  # Disable W&B on Kaggle by default
+
+# Checkpointing - save to Kaggle working directory
+checkpoint:
+  monitor: g_loss
+  mode: min
+  save_top_k: 3
+  dirpath: /kaggle/working/checkpoints
+  filename: gan-{epoch:02d}-{g_loss:.2f}
+
+# Paths for Kaggle
+paths:
+  data_dir: /kaggle/input
+  output_dir: /kaggle/working/experiments
+  checkpoints: /kaggle/working/checkpoints
+  logs: /kaggle/working/logs
+
+# Keep working directory fixed (important on Kaggle)
+hydra:
+  run:
+    dir: .

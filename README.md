@@ -8,6 +8,53 @@ A novel approach to sales forecasting using Conditional Generative Adversarial N
 
 ## Quick Start
 
+### Option A: Run on Kaggle (Recommended)
+
+**The easiest way to run this project is on Kaggle with GPU support!**
+
+1. **Fork this GitHub repository** or upload it to your GitHub account
+
+2. **Create a new Kaggle Notebook**
+   - Go to https://www.kaggle.com/code
+   - Click "New Notebook"
+   - Enable GPU: Settings → Accelerator → GPU T4 x2 (or P100)
+
+3. **Connect to GitHub**
+   - In the notebook, click "File" → "Link to GitHub"
+   - Authorize Kaggle to access your repository
+   - Select this repository
+
+4. **Add the Olist dataset**
+   - Click "Add Input" → "Datasets"
+   - Search for "Brazilian E-Commerce Public Dataset by Olist"
+   - Add the dataset
+
+5. **Run the pipeline**
+   ```python
+   # Clone the repo (if not using GitHub integration)
+   !git clone https://github.com/YOUR_USERNAME/dda4220.git
+   %cd dda4220
+
+   # Install dependencies
+   !pip install -q -r requirements.txt
+
+   # Run the complete pipeline
+   !python scripts/run_kaggle.py
+
+   # Or for a quick test run (5 epochs, 20% data)
+   !python scripts/run_kaggle.py --quick
+   ```
+
+**Advantages of Kaggle:**
+- Free GPU access (30+ hours/week)
+- Olist dataset already available
+- No local setup required
+- Easy to share and reproduce results
+
+---
+
+### Option B: Run Locally
+
 ### 1. Installation
 
 ```bash
@@ -332,6 +379,139 @@ If you use this code for your research, please cite:
 ## License
 
 This project is for academic use only.
+
+---
+
+## Running on Kaggle - Detailed Guide
+
+### Step-by-Step Kaggle Setup
+
+#### 1. Prepare Your GitHub Repository
+
+```bash
+# Make sure all files are committed
+git add .
+git commit -m "Ready for Kaggle"
+git push origin main
+```
+
+#### 2. Create Kaggle Notebook
+
+1. Go to [Kaggle Notebooks](https://www.kaggle.com/code)
+2. Click **"New Notebook"**
+3. Change settings:
+   - **Notebook Type**: Notebook (not Script)
+   - **Language**: Python
+   - **Accelerator**: GPU T4 x2 or GPU P100
+
+#### 3. Add Input Data
+
+In your Kaggle notebook:
+1. Click **"Add Input"** (right sidebar)
+2. Search for **"Brazilian E-Commerce Public Dataset by Olist"**
+3. Click **"Add"** on the dataset by olistbr
+
+#### 4. Setup Code in Kaggle Notebook
+
+Create a new cell and run:
+
+```python
+# Option 1: If using GitHub integration
+# (File → Link to GitHub → Select your repo)
+# Your code will already be available
+
+# Option 2: Clone from GitHub manually
+!git clone https://github.com/YOUR_USERNAME/dda4220.git
+%cd dda4220
+
+# Install dependencies
+!pip install -q -r requirements.txt
+
+# Verify GPU
+import torch
+print(f"GPU available: {torch.cuda.is_available()}")
+if torch.cuda.is_available():
+    print(f"GPU name: {torch.cuda.get_device_name(0)}")
+```
+
+#### 5. Run the Complete Pipeline
+
+**Full Training (recommended):**
+```python
+!python scripts/run_kaggle.py
+```
+
+**Quick Test (5 epochs, 20% data):**
+```python
+!python scripts/run_kaggle.py --quick
+```
+
+**Custom Configuration:**
+```python
+# Set specific number of epochs
+!python scripts/run_kaggle.py --max-epochs 30
+
+# Skip preprocessing if data is already preprocessed
+!python scripts/run_kaggle.py --skip-preprocess
+
+# Skip baseline comparison to save time
+!python scripts/run_kaggle.py --skip-baseline
+```
+
+### Kaggle-Specific Features
+
+The code automatically detects Kaggle environment and adjusts:
+
+1. **Data Paths**: Uses `/kaggle/input/` for datasets
+2. **Output Paths**: Saves to `/kaggle/working/` (accessible after run)
+3. **GPU Settings**: Auto-configures for Kaggle GPUs
+4. **Resource Optimization**: Adjusts batch size and workers for Kaggle
+
+### Expected Runtime on Kaggle
+
+- **Quick mode** (`--quick`): ~10-15 minutes
+- **Full training** (50 epochs): ~2-3 hours with GPU
+- **Complete pipeline** (with baselines): ~3-4 hours
+
+### Downloading Results from Kaggle
+
+After training completes, download your results:
+
+1. Click **"Output"** in the right sidebar
+2. Download the generated files:
+   - `checkpoints/` - Trained model weights
+   - `logs/` - TensorBoard logs
+   - `synthetic_samples.parquet` - Generated data
+
+### Viewing TensorBoard on Kaggle
+
+```python
+# Load TensorBoard in Kaggle notebook
+%load_ext tensorboard
+%tensorboard --logdir /kaggle/working/logs
+```
+
+### Troubleshooting on Kaggle
+
+**Out of Memory Error:**
+```python
+# Reduce batch size
+!python scripts/run_kaggle.py --quick
+```
+
+**Session Timeout:**
+- Kaggle notebooks have 12-hour limit
+- Use `--max-epochs 30` for faster training
+- Save checkpoints frequently (already configured)
+
+**Dataset Not Found:**
+- Make sure you added "Brazilian E-Commerce Public Dataset by Olist" as input
+- Check dataset name in `/kaggle/input/` directory
+
+**GPU Not Available:**
+- Go to Settings (right sidebar)
+- Change Accelerator to GPU T4 x2 or GPU P100
+- Click "Save"
 
 ---
 
