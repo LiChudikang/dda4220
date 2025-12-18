@@ -6,6 +6,8 @@ Usage:
     python scripts/train_gan.py training.max_epochs=200
     python scripts/train_gan.py data.batch_size=256 training.lr_g=0.0002
 """
+#####
+
 
 import sys
 from pathlib import Path
