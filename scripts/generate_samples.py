@@ -51,9 +51,9 @@ def generate_samples(checkpoint_path: str,
     datamodule = SalesDataModule(
         data_path=data_path,
         batch_size=batch_size,
-        num_workers=4
+        num_workers=0  # Auto-adjusted for Kaggle
     )
-    datamodule.setup()
+    datamodule.setup('fit')
 
     train_loader = datamodule.train_dataloader()
     print(f"Number of training batches: {len(train_loader)}")
@@ -65,27 +65,29 @@ def generate_samples(checkpoint_path: str,
     with torch.no_grad():
         for batch in tqdm(train_loader, desc="Generating"):
             # Move batch to device
-            sales_history = batch['sales_history'].to(device)
-            temporal = batch['temporal_features'].to(device)
-            review = batch['review_features'].to(device)
+            history = batch['history'].to(device)
+            temporal = batch['temporal'].to(device)
+            reviews = batch['reviews'].to(device)
+            target = batch['target'].to(device)
 
-            current_batch_size = sales_history.size(0)
+            current_batch_size = history.size(0)
 
             # Generate multiple samples for each real sample
             for _ in range(num_samples_per_real):
-                # Sample noise
-                z = torch.randn(current_batch_size, model.noise_dim, device=device)
+                # Encode condition
+                condition = model.generator.encode_condition(history, reviews, temporal)
 
                 # Generate fake sales
-                fake_sales = model.generator(z, sales_history, temporal, review)
+                fake_sales = model.generator(condition)
 
-                # Store synthetic samples
+                # Store synthetic samples with real conditions
                 for i in range(current_batch_size):
                     synthetic_data.append({
-                        'sales_history': sales_history[i].cpu(),
-                        'temporal_features': temporal[i].cpu(),
-                        'review_features': review[i].cpu(),
-                        'target_sales': fake_sales[i].cpu()
+                        'history': history[i].cpu(),
+                        'temporal': temporal[i].cpu(),
+                        'reviews': reviews[i].cpu(),
+                        'target': fake_sales[i].cpu(),
+                        'real_target': target[i].cpu()
                     })
 
     print(f"\nGenerated {len(synthetic_data)} synthetic samples")
@@ -112,12 +114,25 @@ def generate_samples(checkpoint_path: str,
 
 
 def main():
+    # Auto-detect Kaggle and set default paths
+    from src.utils.kaggle_utils import is_kaggle_environment, get_kaggle_paths, get_processed_data_path
+
+    if is_kaggle_environment():
+        paths = get_kaggle_paths()
+        default_data = str(get_processed_data_path())
+        default_output = str(paths['output'] / 'synthetic_samples.pt')
+        default_checkpoint = None  # Will use latest
+    else:
+        default_data = 'data/processed/product_daily_panel.parquet'
+        default_output = 'data/synthetic/gan_samples.pt'
+        default_checkpoint = 'checkpoints/best_model.ckpt'
+
     parser = argparse.ArgumentParser(description='Generate synthetic sales sequences')
-    parser.add_argument('--checkpoint', type=str, default='checkpoints/best_model.ckpt',
-                       help='Path to trained model checkpoint')
-    parser.add_argument('--data_path', type=str, default='data/processed/product_daily_panel.parquet',
+    parser.add_argument('--checkpoint', type=str, default=default_checkpoint,
+                       help='Path to trained model checkpoint (auto-detect latest if not provided)')
+    parser.add_argument('--data_path', type=str, default=default_data,
                        help='Path to processed data')
-    parser.add_argument('--output_path', type=str, default='data/synthetic/gan_samples.pt',
+    parser.add_argument('--output_path', type=str, default=default_output,
                        help='Path to save synthetic samples')
     parser.add_argument('--num_samples_per_real', type=int, default=5,
                        help='Number of synthetic samples to generate per real sample')
@@ -126,8 +141,24 @@ def main():
 
     args = parser.parse_args()
 
+    # Auto-find latest checkpoint if not provided
+    checkpoint_path = args.checkpoint
+    if checkpoint_path is None or not Path(checkpoint_path).exists():
+        if is_kaggle_environment():
+            ckpt_dir = get_kaggle_paths()['checkpoints']
+            checkpoints = sorted(ckpt_dir.glob('gan-epoch*.ckpt'),
+                               key=lambda x: x.stat().st_mtime)
+            if checkpoints:
+                checkpoint_path = str(checkpoints[-1])
+                print(f"Auto-selected checkpoint: {checkpoints[-1].name}")
+            else:
+                print("❌ No checkpoints found!")
+                sys.exit(1)
+        else:
+            checkpoint_path = args.checkpoint
+
     generate_samples(
-        checkpoint_path=args.checkpoint,
+        checkpoint_path=checkpoint_path,
         data_path=args.data_path,
         output_path=args.output_path,
         num_samples_per_real=args.num_samples_per_real,

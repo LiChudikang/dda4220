@@ -25,7 +25,8 @@ from src.models.baselines.lstm_forecaster import LSTMForecaster
 def train_baseline(use_augmentation: bool = False,
                    synthetic_data_path: str = None,
                    max_epochs: int = 100,
-                   batch_size: int = 128):
+                   batch_size: int = 128,
+                   data_path: str = None):
     """
     Train LSTM baseline forecaster.
 
@@ -34,7 +35,16 @@ def train_baseline(use_augmentation: bool = False,
         synthetic_data_path: Path to synthetic samples
         max_epochs: Maximum training epochs
         batch_size: Batch size
+        data_path: Path to processed data (auto-detected if None)
     """
+    # Auto-detect paths for Kaggle
+    from src.utils.kaggle_utils import is_kaggle_environment, get_kaggle_paths, get_processed_data_path
+
+    if data_path is None:
+        if is_kaggle_environment():
+            data_path = str(get_processed_data_path())
+        else:
+            data_path = "data/processed/product_daily_panel.parquet"
 
     data_type = "augmented" if use_augmentation else "real_only"
 
@@ -47,9 +57,9 @@ def train_baseline(use_augmentation: bool = False,
 
     # Initialize data module
     datamodule = SalesDataModule(
-        data_path="data/processed/product_daily_panel.parquet",
+        data_path=data_path,
         batch_size=batch_size,
-        num_workers=4,
+        num_workers=0,  # Auto-adjusted in DataModule
         use_augmentation=use_augmentation,
         synthetic_data_path=synthetic_data_path,
         synthetic_ratio=1.0
@@ -64,8 +74,16 @@ def train_baseline(use_augmentation: bool = False,
         lr=1e-3
     )
 
+    # Setup paths for Kaggle
+    if is_kaggle_environment():
+        paths = get_kaggle_paths()
+        checkpoint_dir = str(paths['checkpoints'] / f"lstm_{data_type}")
+        log_dir = str(paths['logs'])
+    else:
+        checkpoint_dir = f"checkpoints/lstm_{data_type}"
+        log_dir = "logs"
+
     # Callbacks
-    checkpoint_dir = f"checkpoints/lstm_{data_type}"
     checkpoint_callback = ModelCheckpoint(
         monitor='val_loss',
         mode='min',
@@ -84,7 +102,7 @@ def train_baseline(use_augmentation: bool = False,
 
     # Logger
     logger = TensorBoardLogger(
-        save_dir="logs",
+        save_dir=log_dir,
         name=f"lstm_{data_type}"
     )
 
@@ -126,17 +144,49 @@ def train_baseline(use_augmentation: bool = False,
     for key, value in test_results[0].items():
         print(f"  {key}: {value:.4f}")
 
+    # Save results to CSV
+    import pandas as pd
+    from pathlib import Path
+
+    if is_kaggle_environment():
+        results_dir = get_kaggle_paths()['output']
+    else:
+        results_dir = Path('results')
+
+    results_dir.mkdir(parents=True, exist_ok=True)
+    results_file = results_dir / f'{data_type}_results.csv'
+
+    # Create results dataframe
+    results_df = pd.DataFrame([{
+        'model': 'LSTM',
+        'data_type': data_type,
+        'split': 'test',
+        **test_results[0]
+    }])
+
+    results_df.to_csv(results_file, index=False)
+    print(f"\n✓ Results saved to: {results_file}")
+
     return test_results
 
 
 def main():
+    # Auto-detect Kaggle and set default paths
+    from src.utils.kaggle_utils import is_kaggle_environment, get_kaggle_paths
+
+    if is_kaggle_environment():
+        paths = get_kaggle_paths()
+        default_synthetic = str(paths['output'] / 'synthetic_samples.pt')
+    else:
+        default_synthetic = 'data/synthetic/gan_samples.pt'
+
     parser = argparse.ArgumentParser(description='Train LSTM baseline')
     parser.add_argument('--augmented', action='store_true',
                        help='Use augmented dataset with synthetic samples')
     parser.add_argument('--synthetic_path', type=str,
-                       default='data/synthetic/gan_samples.pt',
+                       default=default_synthetic,
                        help='Path to synthetic samples')
-    parser.add_argument('--max_epochs', type=int, default=100,
+    parser.add_argument('--max_epochs', type=int, default=50,
                        help='Maximum training epochs')
     parser.add_argument('--batch_size', type=int, default=128,
                        help='Batch size')
