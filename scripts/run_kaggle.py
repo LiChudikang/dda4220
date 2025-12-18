@@ -61,6 +61,13 @@ def step_preprocess_data():
     # Check if already preprocessed
     if processed_path.exists():
         print(f"\n✓ Preprocessed data already exists at {processed_path}")
+
+        # In Kaggle environment, automatically skip reprocessing
+        if is_kaggle_environment():
+            print("  → Skipping reprocessing (Kaggle environment)")
+            return processed_path
+
+        # In local environment, ask user
         response = input("Reprocess data? [y/N]: ").strip().lower()
         if response != 'y':
             print("Skipping preprocessing.")
