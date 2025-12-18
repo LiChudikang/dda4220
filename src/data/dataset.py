@@ -9,6 +9,7 @@ from torch.utils.data import Dataset
 import pandas as pd
 import numpy as np
 from typing import Dict, Tuple
+from pathlib import Path
 
 
 class SalesDataset(Dataset):
@@ -158,7 +159,10 @@ class SalesDataset(Dataset):
             'sales_history': torch.FloatTensor(seq['sales_history']),
             'temporal_features': torch.FloatTensor(seq['temporal_features']),
             'review_features': torch.FloatTensor(seq['review_features']),
-            'target_sales': torch.FloatTensor(seq['target_sales'])
+            'target_sales': torch.FloatTensor(seq['target_sales']),
+            # Optional metadata (not used by models, but handy for analysis/generation)
+            'product_id': str(seq['product_id']),
+            'date': str(seq['date'])
         }
 
 
@@ -190,7 +194,8 @@ class AugmentedSalesDataset(Dataset):
         # Load synthetic samples if available
         if synthetic_data_path is not None:
             print(f"Loading synthetic data from {synthetic_data_path}...")
-            synthetic_data = torch.load(synthetic_data_path)
+
+            synthetic_data = self._load_synthetic_samples(synthetic_data_path)
 
             # Sample synthetic data according to ratio
             n_synthetic = int(len(self.real_samples) * synthetic_ratio)
@@ -211,6 +216,38 @@ class AugmentedSalesDataset(Dataset):
 
     def __getitem__(self, idx: int) -> Dict[str, torch.Tensor]:
         return self.all_samples[idx]
+
+    def _load_synthetic_samples(self, path: str):
+        """
+        Load synthetic samples saved either as torch .pt (preferred) or parquet.
+
+        Returns:
+            List of dicts matching SalesDataset __getitem__ output.
+        """
+        path_obj = Path(path)
+
+        if path_obj.suffix == ".pt":
+            return torch.load(path_obj)
+
+        if path_obj.suffix == ".parquet":
+            # Backward compatibility: convert parquet rows to expected structure
+            import pandas as pd
+
+            df = pd.read_parquet(path_obj)
+            samples = []
+            for _, row in df.iterrows():
+                synthetic = torch.tensor(row['synthetic_sales'], dtype=torch.float32)
+                samples.append({
+                    'sales_history': torch.tensor(row['sales_history'], dtype=torch.float32),
+                    'temporal_features': torch.tensor(row['temporal_features'], dtype=torch.float32),
+                    'review_features': torch.tensor(row['review_features'], dtype=torch.float32),
+                    'target_sales': synthetic,
+                    'product_id': str(row.get('product_id', 'synthetic')),
+                    'date': str(row.get('date', ''))
+                })
+            return samples
+
+        raise ValueError(f"Unsupported synthetic data format: {path}")
 
 
 if __name__ == "__main__":

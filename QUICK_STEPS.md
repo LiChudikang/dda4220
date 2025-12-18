@@ -157,7 +157,7 @@ print("\n在 Kaggle 右侧点击 'Output' → 'Download All'")
 
 ---
 
-## 如果遇到错误
+## 🔧 如果遇到错误
 
 ### 找不到 checkpoint
 ```python
@@ -166,13 +166,25 @@ print("\n在 Kaggle 右侧点击 'Output' → 'Download All'")
 
 ### 找不到合成数据
 ```python
-!ls -lh /kaggle/working/data/synthetic/
+!ls -lh /kaggle/working/output/
 ```
 
 ### 内存不足
-在步骤 2 中减少生成数量：
+使用快速模式或减少生成数量：
 ```python
-!python scripts/generate_samples.py \
-    --checkpoint {latest_ckpt} \
-    --num_samples_per_real 3  # 改成 3
+# 快速模式
+!python scripts/run_full_evaluation.py --quick
+
+# 或手动减少生成数量
+!python scripts/generate_samples.py --num_samples_per_real 3
+```
+
+### 训练时间太长
+使用更少的 epochs：
+```python
+# 训练 baseline（仅 10 epochs）
+!python scripts/train_baseline.py --max_epochs 10
+
+# 训练 augmented（仅 10 epochs）
+!python scripts/train_baseline.py --augmented --max_epochs 10
 ```
