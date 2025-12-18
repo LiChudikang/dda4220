@@ -34,6 +34,7 @@ from src.utils.kaggle_utils import (
     get_processed_data_path,
     get_kaggle_paths
 )
+from src.utils.progress_callback import KaggleProgressCallback
 
 
 def parse_args():
@@ -149,6 +150,7 @@ def main():
     )
 
     lr_monitor = LearningRateMonitor(logging_interval='step')
+    progress_callback = KaggleProgressCallback()  # For better progress visibility
 
     # Logger
     logger = TensorBoardLogger(
@@ -165,7 +167,7 @@ def main():
         max_epochs=config['epochs'],
         accelerator='auto',
         devices=1,
-        callbacks=[checkpoint_callback, lr_monitor],
+        callbacks=[checkpoint_callback, lr_monitor, progress_callback],
         logger=logger,
         log_every_n_steps=50,
         enable_progress_bar=True,
