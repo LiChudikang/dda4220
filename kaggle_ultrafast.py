@@ -97,7 +97,8 @@ else:
         "python", "scripts/generate_samples.py",
         "--checkpoint", str(latest_ckpt),
         "--num_samples_per_real", "2",  # Just 2 samples per real sequence
-        "--output", "/kaggle/working/synthetic/ultrafast_samples.pt"
+        "--output_path", "/kaggle/working/synthetic/ultrafast_samples.pt",
+        "--data_path", "/kaggle/working/processed/product_daily_panel_small.parquet"
     ], capture_output=False)
 
     if result.returncode != 0:
@@ -112,9 +113,10 @@ print("\n[4/4] Training baseline models (~2 minutes)...")
 print("  Training baseline (real data only)...")
 result = subprocess.run([
     "python", "scripts/train_baseline.py",
+    "data.path=/kaggle/working/processed/product_daily_panel_small.parquet",
     "training.max_epochs=5",
-    "trainer.limit_train_batches=0.1",
-    "trainer.limit_val_batches=0.2"
+    "trainer.limit_train_batches=50",
+    "trainer.limit_val_batches=20"
 ], capture_output=False)
 
 if result.returncode != 0:
@@ -127,9 +129,10 @@ print("  Training baseline (augmented data)...")
 result = subprocess.run([
     "python", "scripts/train_baseline.py",
     "--augmented",
+    "data.path=/kaggle/working/processed/product_daily_panel_small.parquet",
     "training.max_epochs=5",
-    "trainer.limit_train_batches=0.1",
-    "trainer.limit_val_batches=0.2",
+    "trainer.limit_train_batches=50",
+    "trainer.limit_val_batches=20",
     "data.synthetic_data_path=/kaggle/working/synthetic/ultrafast_samples.pt"
 ], capture_output=False)
 
