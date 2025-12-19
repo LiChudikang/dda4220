@@ -4,8 +4,8 @@ seed: 42
 # Data configuration for Kaggle environment
 data:
   path: /kaggle/input/brazilian-ecommerce-preprocessed/product_daily_panel.parquet
-  batch_size: 128
-  num_workers: 2  # Kaggle has limited CPU cores
+  batch_size: 64  # Reduced from 128 to prevent OOM on Kaggle P100
+  num_workers: 0  # Set to 0 to avoid multiprocessing deadlock on Kaggle
   history_window: 30
   forecast_horizon: 7
   train_ratio: 0.7

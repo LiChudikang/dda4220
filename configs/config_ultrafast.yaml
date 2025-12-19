@@ -1,0 +1,79 @@
+experiment_name: cgan_ultrafast_test
+seed: 42
+
+# Ultra-fast configuration for quick validation (2-3 minutes on P100)
+# Not for production - just to verify pipeline works!
+
+data:
+  path: /kaggle/input/brazilian-ecommerce-preprocessed/product_daily_panel.parquet
+  batch_size: 16  # Minimal batch size
+  num_workers: 0  # No multiprocessing
+  history_window: 30
+  forecast_horizon: 7
+  train_ratio: 0.7
+  val_ratio: 0.15
+  use_augmentation: false
+  synthetic_data_path: null
+  synthetic_ratio: 1.0
+
+# Minimal model configuration
+model:
+  noise_dim: 64   # Reduced from 128
+  condition_dim: 256  # Reduced from 512
+  hidden_dim: 64  # Reduced from 256
+  output_len: 7
+
+# Ultra-fast training configuration
+training:
+  max_epochs: 2   # Only 2 epochs!
+  lambda_gp: 10.0
+  n_critic: 2     # Reduced from 5
+  lr_g: 0.0002    # Slightly higher for faster convergence
+  lr_d: 0.0004
+  gradient_clip_val: 0.0
+
+# Trainer configuration
+trainer:
+  accelerator: auto
+  devices: 1
+  deterministic: false
+  log_every_n_steps: 5
+  enable_progress_bar: true
+  enable_model_summary: true
+  limit_train_batches: 0.05  # Only 5% of training data!
+  limit_val_batches: 0.1     # Only 10% of validation data
+
+# Quick run disabled (settings already applied above)
+quick_run:
+  enabled: false
+  max_epochs: 2
+  batch_size: 16
+  limit_train_batches: 0.05
+  limit_val_batches: 0.1
+  limit_test_batches: 0.0
+
+# Logging
+wandb:
+  project: sales-forecasting-gan
+  entity: null
+  mode: disabled
+
+# Checkpointing
+checkpoint:
+  monitor: g_loss
+  mode: min
+  save_top_k: 1  # Only save 1 checkpoint
+  dirpath: /kaggle/working/checkpoints
+  filename: gan-ultrafast-{epoch:02d}
+
+# Paths for Kaggle
+paths:
+  data_dir: /kaggle/input
+  output_dir: /kaggle/working/experiments
+  checkpoints: /kaggle/working/checkpoints
+  logs: /kaggle/working/logs
+
+# Keep working directory fixed
+hydra:
+  run:
+    dir: .
