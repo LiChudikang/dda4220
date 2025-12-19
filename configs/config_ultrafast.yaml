@@ -43,13 +43,13 @@ trainer:
   limit_train_batches: 50    # Only 50 batches per epoch!
   limit_val_batches: 20      # Only 20 validation batches
 
-# Quick run disabled (settings already applied above)
+# Quick run enabled for ultrafast mode
 quick_run:
-  enabled: false
-  max_epochs: 2
+  enabled: true
+  max_epochs: 1
   batch_size: 16
-  limit_train_batches: 0.05
-  limit_val_batches: 0.1
+  limit_train_batches: 50
+  limit_val_batches: 20
   limit_test_batches: 0.0
 
 # Logging
