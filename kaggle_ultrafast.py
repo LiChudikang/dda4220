@@ -6,11 +6,20 @@ NOT FOR PRODUCTION - just to verify the pipeline works!
 
 Usage in Kaggle:
     !python kaggle_ultrafast.py
+
+Requirements:
+    - Add "Brazilian E-Commerce Public Dataset by Olist" to Kaggle notebook inputs
+    - Enable GPU accelerator in notebook settings
 """
 
 import sys
 import subprocess
 from pathlib import Path
+
+# Add parent directory to path
+sys.path.append(str(Path(__file__).parent))
+
+from src.utils.kaggle_utils import is_kaggle_environment, get_olist_data_path, print_environment_info
 
 print("="*70)
 print("ULTRA-FAST KAGGLE VALIDATION PIPELINE")
@@ -22,6 +31,31 @@ print("  ✓ Sample generation works")
 print("  ✓ Baseline comparison works")
 print("\nNOTE: Results will NOT be accurate (using minimal data/epochs)")
 print("="*70)
+
+# Check environment
+print_environment_info()
+
+# Check if dataset is available
+if is_kaggle_environment():
+    try:
+        data_path = get_olist_data_path()
+        print(f"✓ Olist dataset found at: {data_path}\n")
+    except FileNotFoundError as e:
+        print("\n" + "="*70)
+        print("❌ DATASET NOT FOUND")
+        print("="*70)
+        print(f"\n{e}")
+        print("\n📝 How to fix:")
+        print("  1. Click 'Add data' button on the right side of Kaggle notebook")
+        print("  2. Search for 'Brazilian E-Commerce Public Dataset by Olist'")
+        print("  3. Click 'Add' to attach it to your notebook")
+        print("  4. Restart the kernel and run this script again")
+        print("\nDataset URL:")
+        print("  https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce")
+        print("="*70)
+        sys.exit(1)
+else:
+    print("⚠ Warning: Not running on Kaggle. This script is optimized for Kaggle environment.\n")
 
 # Step 1: Check if data is already preprocessed
 processed_data = Path("/kaggle/working/processed/product_daily_panel.parquet")
