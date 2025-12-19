@@ -25,7 +25,7 @@ model:
 
 # Ultra-fast training configuration
 training:
-  max_epochs: 2   # Only 2 epochs!
+  max_epochs: 1   # Only 1 epoch!
   lambda_gp: 10.0
   n_critic: 2     # Reduced from 5
   lr_g: 0.0002    # Slightly higher for faster convergence
@@ -40,8 +40,8 @@ trainer:
   log_every_n_steps: 5
   enable_progress_bar: true
   enable_model_summary: true
-  limit_train_batches: 0.05  # Only 5% of training data!
-  limit_val_batches: 0.1     # Only 10% of validation data
+  limit_train_batches: 50    # Only 50 batches per epoch!
+  limit_val_batches: 20      # Only 20 validation batches
 
 # Quick run disabled (settings already applied above)
 quick_run:
