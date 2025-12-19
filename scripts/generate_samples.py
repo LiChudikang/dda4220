@@ -65,29 +65,28 @@ def generate_samples(checkpoint_path: str,
     with torch.no_grad():
         for batch in tqdm(train_loader, desc="Generating"):
             # Move batch to device
-            history = batch['history'].to(device)
-            temporal = batch['temporal'].to(device)
-            reviews = batch['reviews'].to(device)
-            target = batch['target'].to(device)
+            history = batch['sales_history'].to(device)
+            temporal = batch['temporal_features'].to(device)
+            reviews = batch['review_features'].to(device)
+            target = batch['target_sales'].to(device)
 
             current_batch_size = history.size(0)
 
             # Generate multiple samples for each real sample
             for _ in range(num_samples_per_real):
-                # Encode condition
-                condition = model.generator.encode_condition(history, reviews, temporal)
+                # Sample noise
+                z = torch.randn(current_batch_size, model.noise_dim, device=device)
 
                 # Generate fake sales
-                fake_sales = model.generator(condition)
+                fake_sales = model(z, history, temporal, reviews)
 
                 # Store synthetic samples with real conditions
                 for i in range(current_batch_size):
                     synthetic_data.append({
-                        'history': history[i].cpu(),
-                        'temporal': temporal[i].cpu(),
-                        'reviews': reviews[i].cpu(),
-                        'target': fake_sales[i].cpu(),
-                        'real_target': target[i].cpu()
+                        'sales_history': history[i].cpu(),
+                        'temporal_features': temporal[i].cpu(),
+                        'review_features': reviews[i].cpu(),
+                        'target_sales': fake_sales[i].cpu()
                     })
 
     print(f"\nGenerated {len(synthetic_data)} synthetic samples")
