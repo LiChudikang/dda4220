@@ -12,6 +12,12 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).parent.parent))
 
 from src.data.preprocessor import OlistPreprocessor
+from src.utils.kaggle_utils import (
+    is_kaggle_environment,
+    get_olist_data_path,
+    get_kaggle_paths,
+    print_environment_info
+)
 
 
 def download_olist_data():
@@ -55,8 +61,36 @@ def download_olist_data():
 def main():
     """Main preprocessing pipeline."""
 
+    # Print environment info
+    print("="*60)
+    print("OLIST DATA PREPROCESSING PIPELINE")
+    print("="*60)
+    print_environment_info()
+
+    # Get paths based on environment
+    try:
+        raw_dir = get_olist_data_path()
+        print(f"✓ Using raw data from: {raw_dir}")
+    except FileNotFoundError as e:
+        print(f"\n❌ {e}")
+        if not is_kaggle_environment():
+            print("\nAttempting to download data locally...")
+            success = download_olist_data()
+            if not success:
+                print("\nPlease download the dataset manually and run again.")
+                return
+            raw_dir = Path("data/raw")
+        else:
+            return
+
+    # Get output path
+    paths = get_kaggle_paths()
+    output_dir = paths['processed_data']
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    print(f"✓ Output directory: {output_dir}")
+
     # Check if data already exists
-    raw_dir = Path("data/raw")
     required_files = [
         'olist_orders_dataset.csv',
         'olist_order_items_dataset.csv',
@@ -67,22 +101,23 @@ def main():
     all_exist = all((raw_dir / f).exists() for f in required_files)
 
     if not all_exist:
-        print("Raw data files not found. Attempting to download...")
-        success = download_olist_data()
-        if not success:
-            print("\nPlease download the dataset manually and run again.")
-            return
+        print(f"\n❌ Required files not found in {raw_dir}")
+        print("Please ensure the Olist dataset is added to your Kaggle notebook inputs.")
+        return
 
     # Run preprocessing
+    print(f"\nStarting preprocessing...")
     preprocessor = OlistPreprocessor(
-        raw_data_path="data/raw",
-        processed_data_path="data/processed"
+        raw_data_path=str(raw_dir),
+        processed_data_path=str(output_dir)
     )
 
     df = preprocessor.run_full_pipeline(min_history_days=60)
 
+    output_file = output_dir / "product_daily_panel.parquet"
     print("\n✓ Preprocessing complete!")
-    print(f"✓ Processed data saved to: data/processed/product_daily_panel.parquet")
+    print(f"✓ Processed data saved to: {output_file}")
+    print(f"✓ Shape: {df.shape}")
 
 
 if __name__ == "__main__":
