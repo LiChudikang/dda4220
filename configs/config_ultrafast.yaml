@@ -5,7 +5,7 @@ seed: 42
 # Not for production - just to verify pipeline works!
 
 data:
-  path: /kaggle/input/brazilian-ecommerce-preprocessed/product_daily_panel.parquet
+  path: /kaggle/working/processed/product_daily_panel.parquet
   batch_size: 16  # Minimal batch size
   num_workers: 0  # No multiprocessing
   history_window: 30
