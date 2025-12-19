@@ -120,7 +120,7 @@ def main():
     if is_kaggle_environment():
         paths = get_kaggle_paths()
         default_data = str(get_processed_data_path())
-        default_output = str(paths['output'] / 'synthetic_samples.pt')
+        default_output = str(paths['output_dir'] / 'synthetic' / 'synthetic_samples.pt')
         default_checkpoint = None  # Will use latest
     else:
         default_data = 'data/processed/product_daily_panel.parquet'
