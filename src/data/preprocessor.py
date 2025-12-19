@@ -176,30 +176,40 @@ class OlistPreprocessor:
         """Normalize sales features per product."""
         print("Normalizing features per product...")
 
-        # Group by product and normalize
-        def normalize_product(group):
-            # Min-max normalization for sales
-            min_sales = group['daily_sales'].min()
-            max_sales = group['daily_sales'].max()
-            if max_sales > min_sales:
-                group['daily_sales_norm'] = (group['daily_sales'] - min_sales) / (max_sales - min_sales)
-            else:
-                group['daily_sales_norm'] = 0.0
+        # Pre-compute product-level stats (much faster than apply)
+        product_stats = df.groupby('product_id').agg({
+            'daily_sales': ['min', 'max'],
+            'review_count': 'max'
+        })
 
-            # Normalize ratings to [0, 1] (already in [0, 5] range)
-            group['avg_rating_norm'] = group['avg_rating'] / 5.0
+        product_stats.columns = ['sales_min', 'sales_max', 'review_max']
+        product_stats = product_stats.reset_index()
 
-            # Log-transform and normalize review counts
-            group['review_count_log'] = np.log1p(group['review_count'])
-            max_log = group['review_count_log'].max()
-            if max_log > 0:
-                group['review_count_norm'] = group['review_count_log'] / max_log
-            else:
-                group['review_count_norm'] = 0.0
+        # Merge stats back to main df
+        df = df.merge(product_stats, on='product_id', how='left')
 
-            return group
+        # Vectorized normalization (much faster than apply)
+        # Min-max normalization for sales
+        sales_range = df['sales_max'] - df['sales_min']
+        df['daily_sales_norm'] = np.where(
+            sales_range > 0,
+            (df['daily_sales'] - df['sales_min']) / sales_range,
+            0.0
+        )
 
-        df = df.groupby('product_id').apply(normalize_product).reset_index(drop=True)
+        # Normalize ratings to [0, 1]
+        df['avg_rating_norm'] = df['avg_rating'] / 5.0
+
+        # Log-transform and normalize review counts
+        df['review_count_log'] = np.log1p(df['review_count'])
+        df['review_count_norm'] = np.where(
+            df['review_max'] > 0,
+            df['review_count_log'] / np.log1p(df['review_max']),
+            0.0
+        )
+
+        # Drop temporary columns
+        df = df.drop(['sales_min', 'sales_max', 'review_max'], axis=1)
 
         return df
 
